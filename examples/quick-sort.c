@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include "list.h"
 
@@ -36,6 +37,35 @@ static void list_qsort(struct list_head *head)
     list_splice_tail(&list_greater, head);
 }
 
+static void list_qsort_nr(struct list_head *head)
+{
+#define MAX_LEVELS 64
+    struct list_head *sl[MAX_LEVELS], *sr[MAX_LEVELS];
+    int i = 0;
+    sl[0] = head, sr[0] = head;
+    while (i >= 0) {
+        struct list_head *L = sl[i], *R = sr[i--];
+        if (L->next == R)
+            continue;
+        struct list_head *pivot = L->next, *node = pivot;
+        int cl = 0, cr = 0;
+        while (node->next != R) {
+            if (cmpint(&list_entry(node->next, struct listitem, list)->i,
+                       &list_entry(pivot, struct listitem, list)->i) < 0)
+                list_move(node->next, L), ++cl;
+            else
+                node = node->next, ++cr;
+        }
+        if (cl >= cr) {
+            sl[++i] = L, sr[i] = pivot;
+            sl[++i] = pivot, sr[i] = R;
+        } else {
+            sl[++i] = pivot, sr[i] = R;
+            sl[++i] = L, sr[i] = pivot;
+        }
+    }
+}
+
 int main(void)
 {
     struct list_head testlist;
@@ -58,7 +88,7 @@ int main(void)
     assert(!list_empty(&testlist));
 
     qsort(values, ARRAY_SIZE(values), sizeof(values[0]), cmpint);
-    list_qsort(&testlist);
+    list_qsort_nr(&testlist);
 
     i = 0;
     list_for_each_entry_safe (item, is, &testlist, list) {
